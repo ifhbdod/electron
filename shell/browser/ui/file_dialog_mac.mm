@@ -93,7 +93,26 @@ void SetAllowedFileTypes(NSSavePanel* dialog, const Filters& filters) {
     NSMutableSet* file_type_set = [NSMutableSet set];
     [filter_names addObject:@(filter.first.c_str())];
     for (const std::string& ext : filter.second) {
-      [file_type_set addObject:@(ext.c_str())];
+      // macOS is incapable of understanding multiple file extensions,
+      // so we need to tokenize the extension that's been passed in.
+      // We want to err on the side of allowing files, so we pass
+      // along only the final extension ('tar.gz' => 'gz').
+      if (ext.find(".") != std::string::npos) {
+        std::vector<std::string> tokens;
+        size_t start = 0;
+        size_t end = 0;
+
+        while ((start = ext.find_first_not_of(".", end)) != std::string::npos) {
+          end = ext.find(".", start);
+          tokens.push_back(ext.substr(start, end - start));
+        }
+
+        // Add the final extension to the allow types set.
+        std::string final_ext = tokens[tokens.size() - 1];
+        [file_type_set addObject:@(final_ext.c_str())];
+      } else {
+        [file_type_set addObject:@(ext.c_str())];
+      }
     }
     [file_types_list addObject:[file_type_set allObjects]];
   }
